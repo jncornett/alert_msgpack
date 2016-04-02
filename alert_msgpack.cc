@@ -35,6 +35,7 @@
 #include <string>
 #include <msgpack.hpp>
 
+#include "detection/signature.h"
 #include "framework/logger.h"
 #include "framework/module.h"
 
@@ -44,17 +45,38 @@
 // msgpack
 //-------------------------------------------------------------------------
 
+#define PACK_PAIR(key, value) \
+    pk.pack(std::string(key)); \
+    pk.pack(value)
+
 namespace
 {
 
 inline void pack_event(std::ostream& os, const Event& e)
 {
     msgpack::packer<std::ostream> pk { &os };
-    pk.pack_map(4);
-    pk.pack(std::string("event_id"));
-    pk.pack(e.event_id);
-    pk.pack(std::string("event_reference"));
-    pk.pack(e.event_reference);
+
+    if ( e.sig_info )
+        pk.pack_map(11);
+    else
+        pk.pack_map(4);
+
+    PACK_PAIR("event_id", e.event_id);
+    PACK_PAIR("event_reference", e.event_reference);
+    PACK_PAIR("ref_time", e.ref_time.tv_sec);
+    PACK_PAIR("alt_msg", std::string(e.alt_msg ? e.alt_msg : ""));
+
+    if ( e.sig_info )
+    {
+        const auto& si = *e.sig_info;
+        PACK_PAIR("gid", si.generator);
+        PACK_PAIR("sid", si.id);
+        PACK_PAIR("rev", si.rev);
+        PACK_PAIR("classification", si.class_id);
+        PACK_PAIR("priority", si.priority);
+        PACK_PAIR("message", std::string(si.message ? si.message : ""));
+        PACK_PAIR("text_rule", si.text_rule);
+    }
 }
 
 }
@@ -98,7 +120,7 @@ bool MsgPackModule::set(const char*, Value& v, SnortConfig*)
 class MsgPackLogger : public Logger
 {
 public:
-    MsgPackLogger(std::string) { }
+    MsgPackLogger(std::string path) : path { path } { }
 
     void open() override;
     void close() override;
@@ -137,8 +159,8 @@ void MsgPackLogger::close()
 
 void MsgPackLogger::alert(Packet*, const char* msg, Event* e)
 {
-    *stream << "TEST\n";
     pack_event(*stream, *e);
+    stream->flush();
 }
 
 //-------------------------------------------------------------------------
