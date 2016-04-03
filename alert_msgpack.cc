@@ -49,6 +49,9 @@
     pk.pack(std::string(key)); \
     pk.pack(value)
 
+#define PACK_STRING(key, value) \
+    PACK_PAIR(key, std::string(value ? value : ""))
+
 namespace
 {
 
@@ -64,7 +67,7 @@ inline void pack_event(std::ostream& os, const Event& e)
     PACK_PAIR("event_id", e.event_id);
     PACK_PAIR("event_reference", e.event_reference);
     PACK_PAIR("ref_time", e.ref_time.tv_sec);
-    PACK_PAIR("alt_msg", std::string(e.alt_msg ? e.alt_msg : ""));
+    PACK_STRING("alt_msg", e.alt_msg);
 
     if ( e.sig_info )
     {
@@ -74,7 +77,7 @@ inline void pack_event(std::ostream& os, const Event& e)
         PACK_PAIR("rev", si.rev);
         PACK_PAIR("classification", si.class_id);
         PACK_PAIR("priority", si.priority);
-        PACK_PAIR("message", std::string(si.message ? si.message : ""));
+        PACK_STRING("message", si.message);
         PACK_PAIR("text_rule", si.text_rule);
     }
 }
